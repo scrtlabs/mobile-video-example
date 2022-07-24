@@ -129,7 +129,7 @@ async function main() {
 
                 let encoder = HWEncode[hwAccel];
                 let decoder = HWDecode[hwAccel][codec];
-                if (os.type().toLocaleLowerCase() != "macos") { // Add support in macOS
+                if (os.type().toLocaleLowerCase() == "macos") { // Add support in macOS
                     decoder = [];
                     encoder = ['-c:v', 'h264_videotoolbox'];
                 }

@@ -5,7 +5,7 @@ inside the browser + an experimental mobile experience of viewing NFT private me
 
 **You can find here:**
 
-- Echo Server - Used for the enctryped video
-- Video Transcoder - Encrypt an entire directory of video files and transcode to HLS
-- NFT Deployment - Deploy SNIP-721 and mint an NFT with example video data
-- UI - A UI for desktop and mobile
+- [Echo Server](/echo-server/README.md) - Used for the enctryped video
+- [Video Transcoder](/video-transcoder/README.md) - Encrypt an entire directory of video files and transcode to HLS
+- [NFT Deployment](/mint-nft/README.md) - Deploy SNIP-721 and mint an NFT with example video data
+- [UI](/mobile-video/README.md) - A UI for desktop and mobile

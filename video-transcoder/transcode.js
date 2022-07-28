@@ -18,6 +18,10 @@ const HWDecode = {
         h264: ["-c:v", "h264_cuvid"],
         hevc: ["-c:v", "hevc_cuvid"],
     },
+    VAAPI: {
+        h264: [],
+        hevc: [],
+    },
     CPU: {
         h264: [],
         hevc: [],
@@ -27,6 +31,7 @@ const HWDecode = {
 const HWEncode = {
     INTEL: ["-c:v", "h264_qsv"],
     NVIDIA: ["-c:v", "h264_nvenc"],
+    VAAPI: ["-c:v", "h264_vaapi"],
     CPU: ["-c:v", "libx264"]
 };
 
@@ -40,6 +45,8 @@ const HLSParams = [
     "-hls_segment_filename",
 ];
 const AudioParams = ["-c:a", "aac", "-strict", "-2"];
+//const AudioParams = ["-an"]; // Remove audio from video
+
 
 function HLSEncryption(dest, filename) {
     const encKey = randomBytes(16);
@@ -70,7 +77,7 @@ async function main() {
 
         if (args.length == 3) {
             var enc = args[2].toUpperCase();
-            if (enc == "INTEL" || enc == "NVIDIA") {
+            if (enc === "INTEL" || enc === "NVIDIA" || enc === "VAAPI" || enc === "CPU") {
                 hwAccel = enc;
             }
         }
@@ -129,15 +136,21 @@ async function main() {
 
                 let encoder = HWEncode[hwAccel];
                 let decoder = HWDecode[hwAccel][codec];
-                if (os.type().toLocaleLowerCase() == "macos") { // Add support in macOS
+                if (os.type().toLocaleLowerCase() === "macos") { // Add support in macOS
                     decoder = [];
                     encoder = ['-c:v', 'h264_videotoolbox'];
+                }
+
+                let filter = [];
+                if (hwAccel === "VAAPI") {
+                    filter = ["-vf", "format=nv12|vaapi,hwupload"];
                 }
 
                 var args = ["-y"];
                 args = args.concat(
                     decoder,
                     ["-i", videos[fileIndex]],
+                    filter,
                     AudioParams,
                     encoder,
                     ["-b:v", "6M", "-g", "60"]

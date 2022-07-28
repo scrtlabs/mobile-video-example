@@ -12,7 +12,7 @@ On linux you can install from the mainline repo using:
 
 Place your video file in an input directory, create an output directory and run the following commands:
 
-**Windows / Linux:**
+**Windows:**
 
 ```bash
 node transcode [input directory] [output directory] [encoder type | cpu, intel, nvidia]
@@ -27,7 +27,12 @@ node transcode d:\tmp d:\tmp\output intel
 It is recommended to use intel or nvidia encoders to significantly decrease the encoding time.  
 _Notice: Intel encoding may not work out of the box on Intel's 12th gen CPU, AMD CPUs not supported without Nvidia GPU_
 
+**Linux**  
+
+If you have Nvidia GPU please use it, otherwise use CPU.  
+
 **macOS:**  
+
 
 ```bash
 node transcode [input directory] [output directory]

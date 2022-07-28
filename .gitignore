@@ -1,6 +1,6 @@
 /echo-server/node_modules
 /mint-nft/node_modules
 /mint-nft/.env
-.vscode
 *.crt
 *.key
+/.vscode

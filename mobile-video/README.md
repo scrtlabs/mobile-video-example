@@ -36,4 +36,5 @@ ipfs://QmVbKFQRNx166RuqyyEb8XMwnw7GY57g7sXgcmxxKrL9ms/main.m3u8
 ```
 Make sure that you have IPFS gateway with pinning for that IPFS directory to allow smooth video playback.  
 Please rename .env.example to .env and change it if needed.  
+**Make sure that your IPFS Gateway supports CORS**  
 The variable NUXT_ENV_NFT_CONTRACT contains address for NFT contract in the testnet (pulsar-2).

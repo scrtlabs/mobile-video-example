@@ -6,7 +6,7 @@
         <template v-else>
             <v-dialog v-model="showQRDialog" max-width="540">
                 <div style="display: flex; justify-content: center; align-items: center; flex-direction: column; background-color: black">
-                    <div style="font-family: MyUnderwood; font-size: 20px">Scan this QR code with your mobile device</div>
+                    <div style="font-size: 20px">Scan this QR code with your mobile device</div>
                     <div style="background-color: white; padding: 20px; width: 540px; height: 540px">
                         <qr-code :size="500"  :text="qrData"></qr-code>
                     </div>
@@ -17,19 +17,25 @@
                 Address: <span class="wallet">{{ walletAddress }}</span>
             </div>
             <div style="margin-top: 10px">
-                <v-btn v-if="NFTs.length === 0 && !isMobile" @click="mint" :disabled="minting">{{ minting ? 'Minting...' : 'Mint' }}</v-btn>
-                <v-btn v-if="NFTs.length > 0 && !isMobile" @click="showQRDialog = true">Open on mobile</v-btn>
-                <template v-if="isMobile && allowToScan">
-                    <div style="display: flex; flex-direction: column; align-items: center">
-                        <div  v-if="!showQRScanner">Open my collection on your desktop and scan the code</div>
-                        <v-btn v-if="!showQRScanner" @click="showQRScanner = true">Scan</v-btn>
-                        
-                        <div style="margin-bottom: 20px" v-if="showQRScanner && cameraInfo != ''">{{ cameraInfo }}</div>
-                        <v-progress-circular v-if="waitingForQRScan && showQRScanner" :size="100" :width="12" color="orange" indeterminate></v-progress-circular>
-                        
-                        <qrcode-stream v-if="showQRScanner" @decode="onDecode" @init="onInit"></qrcode-stream>
-                    </div>
+                <template v-if="balance > 0">
+                    <v-btn v-if="NFTs.length === 0 && !isMobile" @click="mint" :disabled="minting">{{ minting ? 'Minting...' : 'Mint' }}</v-btn>
+                    <v-btn v-if="NFTs.length > 0 && !isMobile" @click="showQRDialog = true">Open on mobile</v-btn>
+                    <template v-if="isMobile && allowToScan">
+                        <div style="display: flex; flex-direction: column; align-items: center">
+                            <div  v-if="!showQRScanner">Open my collection on your desktop and scan the code</div>
+                            <v-btn v-if="!showQRScanner" @click="showQRScanner = true">Scan</v-btn>
+                            
+                            <div style="margin-bottom: 20px" v-if="showQRScanner && cameraInfo != ''">{{ cameraInfo }}</div>
+                            <v-progress-circular v-if="waitingForQRScan && showQRScanner" :size="100" :width="12" color="orange" indeterminate></v-progress-circular>
+                            
+                            <qrcode-stream v-if="showQRScanner" @decode="onDecode" @init="onInit"></qrcode-stream>
+                        </div>
+                    </template>
                 </template>
+                <template v-else>
+                    <div>You don't have enough SCRT in your wallet</div>
+                </template>
+
             </div>
             <div>
                 <v-container v-if="loadingTokens">
@@ -59,7 +65,7 @@
                     </template>
                     
                     <v-row align="center" no-gutters>
-                        <v-col v-if="!loadingTokens && NFTs.length == 0 ">
+                        <v-col v-if="balance > 0 && !loadingTokens && NFTs.length == 0 ">
                             No items, please mint one
                         </v-col>
                         <v-col v-for="(item, index) in NFTs" :key="'table_item_' + index" class="item" style="margin-right: 5px; margin-left: 5px">
@@ -111,6 +117,12 @@ export default {
             
             this.$nuxt.$on('secretjs-loaded', async () => { 
                 self.getNFTs();
+                self.checkBalance();
+            });
+
+            this.$nuxt.$emit('keystorechange', async () => { 
+                self.getNFTs();
+                self.checkBalance();
             });
             
         });
@@ -180,12 +192,22 @@ export default {
             waitingForQRScan: true,
             cameraInfo: "Waiting for camera...",
 
-            minting: false
+            minting: false,
+
+            balance: 0
 
 
         }
     },
     methods: {
+        async checkBalance() {
+            var answer = await this.secretjs.query.bank.balance(
+            {
+                address: this.walletAddress,
+                denom: "uscrt",
+            });
+            this.balance = answer.balance.amount;
+        },
         getResource(resource) {
             resource = resource.replace("ipfs://", "");
             return `${process.env.NUXT_ENV_IPFS_GATEWAY_URL}/${resource}`;
@@ -259,91 +281,6 @@ export default {
         
         async getNFTs(strPermit) {
             this.$store.dispatch('getCollection', strPermit);
-            return;
-            var self = this;
-            
-            this.loadingTokens = true;
-            this.totalTokens = -1;
-            this.loadedTokens = 0;
-            this.NFTs = [];
-
-            var activeAddress = this.walletAddress;
-            var activePermit = "";
-            var activeSecretjs = this.secretjs
-
-            if (strPermit) {
-                var p = base64.decode(decodeURIComponent(strPermit));
-                var wPermit = JSON.parse(p);
-                activeAddress = wPermit.address;
-                activePermit = wPermit.data;
-                Cookies.set('test-permit', strPermit, { expires: 7 });
-
-                // Create temp wallet
-                var wallet = new Wallet();
-
-                activeSecretjs = await SecretNetworkClient.create({
-                    grpcWebUrl: process.env.NUXT_ENV_GRPCWEB_URL,
-                    chainId: process.env.NUXT_ENV_CHAIN_ID,
-                    wallet: wallet,
-                    walletAddress: wallet.address,
-                });
-
-            } else {
-                this.permit = activePermit = await getPermit(this.secretjs, this.walletAddress, this.nftContract, this.chainId);
-            }
-
-            this.allowToScan = false;            
-
-            getTokens(activeSecretjs, activeAddress, this.nftContract, activePermit).then( async (tokens) => {
-                self.totalTokens = tokens.length;
-
-                for (let i = 0; i < tokens.length; i++) {
-                    const msg = {
-                        with_permit: {
-                            query: {
-                                nft_dossier: {
-                                token_id: tokens[i],
-                                },
-                            },
-                            permit: activePermit
-                        },
-                    };
-                    let singleToken = await activeSecretjs.query.compute.queryContract({
-                        contractAddress: self.nftContract.address,
-                        codeHash: self.nftContract.codeHash,
-                        query: msg
-                    });
-
-                    try {
-                        var nft = {
-                            id: tokens[i],
-                            description: singleToken.nft_dossier.public_metadata.extension.description,
-                            public_img: singleToken.nft_dossier.public_metadata.extension.image,
-                            video: {
-                                url: "",
-                                key: ""
-                            }
-                        }
-
-                        var media = singleToken.nft_dossier.private_metadata.extension?.media
-                        if (media) {
-                            for (let i = 0; i < media.length; i++ ) {
-                                if (media[i].file_type === "video" && media[i].extension === "m3u8") {
-                                    nft.video.url = media[i].url;
-                                    nft.video.key = media[i].authentication.key;
-                                    break; // Take only the 1st for the demo
-                                }
-                            }
-                        }
-
-                        self.NFTs.push(nft);
-                        self.loadedTokens++;
-
-                    } catch (err) {}
-                }
-                self.loadingTokens = false;
-
-            });
         }
     }
 };
